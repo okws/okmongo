@@ -4,6 +4,10 @@ libokmongo_la_LDFLAGS = -version-info $(LIBVERSION)
 
 pkginclude_HEADERS = bson.h mongo.h string_matcher.h bson_dumper.h
 
+if ENABLE_COVERAGE
+AM_CXXFLAGS=-fno-inline --coverage
+endif
+
 if RUN_CLANG_ANALYZE
 plists = $(SOURCES:%.cc=%.plist)
 MOSTLYCLEANFILES = $(plists)

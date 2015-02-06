@@ -2,8 +2,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/src
 LDADD   = $(top_builddir)/src/libokmongo.la
 
 if ENABLE_COVERAGE
-AM_CPPFLAGS += --coverage
-AM_LDFLAGS = --coverage
+AM_CXXFLAGS=-fno-inline --coverage
+AM_LDFLAGS=-static
 endif
 
 noinst_PROGRAMS = bson_test mongo_test string_matcher_test
