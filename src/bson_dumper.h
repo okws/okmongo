@@ -101,8 +101,13 @@ public:
             gmtime_r(&i, &t);
 
             char buf[32];
-            strftime(buf, sizeof(buf), "\"%Y-%m-%dT%H:%M:%SZ\"", &t);
-            *tgt_ << buf;
+            size_t sz =
+                    strftime(buf, sizeof(buf), "\"%Y-%m-%dT%H:%M:%SZ\"", &t);
+            if (sz != 0) {
+                *tgt_ << buf;
+            } else {
+                *tgt_ << i;
+            }
         } else {
             EmitInt64(i);
         }
