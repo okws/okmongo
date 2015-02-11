@@ -518,6 +518,9 @@ protected:
 
 public:
     BsonTag Tag() const { return tag_; }
+    int32_t GetRawDataSize() const { return size_; }
+    const char *GetRawData() const { return data_; }
+
     int32_t GetDataSize() const;
     const char *GetData() const;
 
