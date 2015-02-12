@@ -70,7 +70,8 @@ int main() {
         w.Element("string",
                   "Why hire programmers when you could have a million "
                   "monkeys?");
-        w.ElementUtcDatetime("date", time(nullptr));
+        w.ElementUtcDatetime("date",
+                             static_cast<int64_t>(time(nullptr)) * 1000);
         w.ElementObjectId("objectid", oid);
         w.ElementTimestamp("timestamp", 0);
         {
