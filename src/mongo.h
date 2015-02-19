@@ -375,9 +375,17 @@ bool FillInsertOp(BsonWriter *w, int32_t requestid, const char *db,
  */
 constexpr int32_t kMaxWriteBatchSize = 1000;
 
+constexpr int32_t kMaxMsgSize = 48000000;
+constexpr int32_t kMaxBsonObjectSize = 16777216;
+constexpr int32_t kReservedFooterSize = 128;
+
 template <typename It>
 bool FillInsertRangeOp(BsonWriter *w, int32_t requestid, const char *db,
                        const char *collection, It *curs, const It end) {
+    // If we stick below that limit before inserting documents we should never
+    // have to backtrack to stay under the size limit for messages
+    constexpr int32_t kSzCutoff =
+            kMaxMsgSize - kMaxBsonObjectSize - kReservedFooterSize;
     AppendCommandHeader(w, requestid, db);
 
     w->Document();
@@ -386,7 +394,9 @@ bool FillInsertRangeOp(BsonWriter *w, int32_t requestid, const char *db,
         w->PushArray("documents");
         {
             int32_t cnt = 0;
-            while (*curs != end && cnt < kMaxWriteBatchSize) {
+            while (*curs != end
+                   && cnt < kMaxWriteBatchSize
+                   && w->len() < kSzCutoff) {
                 w->PushDocument(cnt);
                 // <typename It::value_type>
                 if (!BsonWriteFields(w, *(*curs))) {
