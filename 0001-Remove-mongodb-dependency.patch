@@ -1,0 +1,2564 @@
+From 7663db0476a7d76eebcf88899446aaad1f75385f Mon Sep 17 00:00:00 2001
+From: Ben Brittain <ben@okcupid.com>
+Date: Thu, 14 Jul 2016 14:38:34 -0400
+Subject: [PATCH 1/2] Remove mongodb dependency
+
+---
+ .gitmodules               |   3 -
+ Makefile.am               |   1 -
+ configure.in              |  26 +--
+ libamongo/Makefile.am     |  39 ----
+ libamongo/abson.C         | 584 ----------------------------------------------
+ libamongo/abson.h         | 454 -----------------------------------
+ libamongo/amongo.T        | 406 --------------------------------
+ libamongo/amongo.Th       | 424 ---------------------------------
+ libamongo/okmongo         |   1 -
+ test/Makefile.am          |   4 +-
+ test/bson/Makefile.am     |  39 ----
+ test/bson/fakeblob_prot.x | 131 -----------
+ test/bson/mongotest.T     | 270 ---------------------
+ 13 files changed, 11 insertions(+), 2371 deletions(-)
+ delete mode 100644 libamongo/Makefile.am
+ delete mode 100644 libamongo/abson.C
+ delete mode 100644 libamongo/abson.h
+ delete mode 100644 libamongo/amongo.T
+ delete mode 100644 libamongo/amongo.Th
+ delete mode 160000 libamongo/okmongo
+ delete mode 100644 test/bson/Makefile.am
+ delete mode 100644 test/bson/fakeblob_prot.x
+ delete mode 100644 test/bson/mongotest.T
+
+diff --git a/.gitmodules b/.gitmodules
+index bae0c29..e69de29 100644
+--- a/.gitmodules
++++ b/.gitmodules
+@@ -1,3 +0,0 @@
+-[submodule "libamongo/okmongo"]
+-	path = libamongo/okmongo
+-	url = https://github.com/okws/okmongo.git
+diff --git a/Makefile.am b/Makefile.am
+index 5d301a3..7db233f 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -18,7 +18,6 @@ SBD1 = \
+ 	libokssl \
+ 	libweb \
+ 	librfn \
+-	libamongo \
+ 	pub
+ 
+ if USE_MYSQL
+diff --git a/configure.in b/configure.in
+index 6ad4232..e3b88da 100644
+--- a/configure.in
++++ b/configure.in
+@@ -133,7 +133,7 @@ CPPFLAGS="$CPPFLAGS -I"'$(top_srcdir)'
+ dnl
+ dnl for .x files, need header in build directory
+ dnl
+-for lib in libpub libaok libweb libamysql ezdb/libezdb libamongo; do
++for lib in libpub libaok libweb libamysql ezdb/libezdb; do
+     CPPFLAGS="$CPPFLAGS -I"'$(top_builddir)'"/$lib"
+ done
+ 
+@@ -141,8 +141,7 @@ dnl
+ dnl library directories
+ dnl
+ for lib in libpub libahttp libokxml libaok libamt libamt_pthread libamysql \
+-           libweb libokssl librfn ezdb/libezdb libredis libamongo/okmongo/src \
+-           libamongo; do
++           libweb libokssl librfn ezdb/libezdb libredis; do
+     CPPFLAGS="$CPPFLAGS -I"'$(top_srcdir)'"/$lib"
+ done
+ 
+@@ -159,14 +158,12 @@ if test "$ac_do_pthreads" = "1"; then
+    LIBAMT_PTHREAD='$(top_builddir)/libamt_pthread/libamt_pthread.la'
+ fi
+ LIBAMYSQL='$(top_builddir)/libamysql/libamysql.la'
+-LIBAMONGO='$(top_builddir)/libamongo/libamongo.la'
+ LIBWEB='$(top_builddir)/libweb/libweb.la'
+ LIBEZDB='$(top_builddir)/ezdb/libezdb/libezdb.la'
+ LIBEZDBSRV='$(top_builddir)/ezdb/libezdb/libezdbsrv.la'
+ LIBOKSSL='$(top_builddir)/libokssl/libokssl.la'
+ LIBRFN='$(top_builddir)/librfn/librfn.la'
+ LDADD_PUB='$(LIBPUB) '"$LDADD"
+-LDADD_AMONGO='$(LIBPUB) $(LIBAMONGO) $(LIBOKXML) $(LIBAHTTP) $(LIBAOK) $(LIBRFN) '"$LDADD"' $(LIBEXPAT)'
+ LDADD_RFN='$(LIBRFN) $(LIBAHTTP) $(LIBPUB) '"$LDADD"
+ LDADD='$(LIBEZDB) $(LIBAOK) $(LIBRFN) $(LIBWEB) $(LIBOKSSL) $(LIBOKXML) $(LIBAHTTP) $(LIBPUB) '"$LDADD"' $(LIBEXPAT) $(LIBSSL)'
+ LDADD_AMT='$(LIBAMT) $(LIBAMT_PTHREAD)'"$LDADD"
+@@ -182,7 +179,6 @@ else
+    LDEPS='$(LIBWEB) $(LIBAOK) $(LIBAHTTP) $(LIBOKXML) $(LIBPUB) '"$LDEPS"
+    LDEPS_AMT='$(LIBAMT) $(LIBAMT_PTHREAD)'"$LDEPS"
+    LDEPS_AMYSQL='$(LIBEZDBSRV) $(LIBAMT) $(LIBAMT_PTHREAD) $(LIBAMYSQL) '"$LDEPS"
+-   LDEPS_AMONGO='$(LIBPUB) $(LIBAMONGO) '"$LDEPS"    
+    LDEPS_REDIS='$(LIBREDIS) '"$LDEPS"
+ fi
+ LDADD_AMYSQL='$(LIBEZDBSRV) $(LIBAMT) $(LIBAMT_PTHREAD) $(LIBAMYSQL) '"$LDADD"' $(LDADD_THR) $(LDADD_MYSQL) '
+@@ -225,7 +221,6 @@ ETAGS_ARGS='-C /dev/null'
+ OKWS_SET_VERSION
+ 
+ AC_SUBST(LIBPUB)
+-AC_SUBST(LIBAMONGO)
+ AC_SUBST(LIBAHTTP)
+ AC_SUBST(LIBOKXML)
+ AC_SUBST(LIBAOK)
+@@ -239,7 +234,6 @@ AC_SUBST(LIBEZDBSRV)
+ AC_SUBST(LIBAMYSQL)
+ AC_SUBST(LIBREDIS)
+ AC_SUBST(LDADD_PUB)
+-AC_SUBST(LDADD_AMONGO)
+ AC_SUBST(LDEPS_PUB)
+ AC_SUBST(LDADD_RFN)
+ AC_SUBST(LDEPS_RFN)
+@@ -248,7 +242,6 @@ AC_SUBST(LDADD_REDIS)
+ AC_SUBST(LDADD_AMYSQL)
+ AC_SUBST(LDEPS_AMT)
+ AC_SUBST(LDEPS_AMYSQL)
+-AC_SUBST(LDEPS_AMONGO)
+ AC_SUBST(ETAGS_ARGS)
+ 
+ PUB_PDEBUG
+@@ -257,15 +250,14 @@ AC_SUBST(PUBFLAGS)
+ 
+ AC_CONFIG_COMMANDS([mkdir], [$MKDIR_P py/okws])
+ AC_CONFIG_FILES(test/pub/test_runner, [chmod +x test/pub/test_runner])
+-AC_OUTPUT(libpub/Makefile pub/Makefile 
+-	  okd/Makefile libahttp/Makefile libaok/Makefile  
++AC_OUTPUT(libpub/Makefile pub/Makefile
++	  okd/Makefile libahttp/Makefile libaok/Makefile
+ 	  libokxml/Makefile client/Makefile libamt/Makefile libamysql/Makefile
+-      libamongo/Makefile libweb/Makefile libredis/Makefile logd/Makefile Makefile
+-      conf/Makefile conf/freebsd/Makefile test/Makefile test/unit/Makefile
++          libweb/Makefile libredis/Makefile logd/Makefile Makefile
++          conf/Makefile conf/freebsd/Makefile test/Makefile test/unit/Makefile
+ 	  test/system/Makefile test/pub/Makefile htdocs/Makefile contrib/Makefile
+-	  xmlrpcc/Makefile test/system/xmlxlate/Makefile 
++	  xmlrpcc/Makefile test/system/xmlxlate/Makefile
+ 	  test/system/3tier/Makefile libokssl/Makefile ssld/Makefile
+ 	  librfn/Makefile test/regtest/Makefile test/regtest/cases/Makefile
+-	  libamt_pthread/Makefile ezdb/Makefile ezdb/libezdb/Makefile
+-      ezdb/server/Makefile py/Makefile py/gen_okws_config.sh test/bson/Makefile
+-      libpub/okws_sfs.h)
++          libamt_pthread/Makefile ezdb/Makefile ezdb/libezdb/Makefile
++          ezdb/server/Makefile py/Makefile py/gen_okws_config.sh libpub/okws_sfs.h)
+diff --git a/libamongo/Makefile.am b/libamongo/Makefile.am
+deleted file mode 100644
+index 4a30c9c..0000000
+--- a/libamongo/Makefile.am
++++ /dev/null
+@@ -1,39 +0,0 @@
+--include $(SFS_LIB_MK)
+-
+-OKMONGO_SRC=$(srcdir)/okmongo/src
+-VPATH=$(srcdir):$(OKMONGO_SRC)
+-
+-$(PROGRAMS): $(LDEPS)
+-
+-SUFFIXES = .T .C
+-.Th.h:
+-	$(TAME) -o $@ $< || (rm -f $@ && false)
+-
+-.T.C:
+-	$(TAME) -o $@ $< || (rm -f $@ && false)
+-
+-
+-okwslib_LTLIBRARIES = libamongo.la
+-libamongo_la_SOURCES =\
+-	abson.C\
+-	amongo.C\
+-	bson.cc\
+-	bson_dumper.cc\
+-	mongo.cc
+-
+-okwsinclude_HEADERS = \
+-	abson.h\
+-	amongo.h\
+-	$(OKMONGO_SRC)/bson.h\
+-	$(OKMONGO_SRC)/mongo.h\
+-	$(OKMONGO_SRC)/string_matcher.h\
+-	$(OKMONGO_SRC)/bson_dumper.h
+-
+-libamongo_la_LDFLAGS = $(LIBTOOL_VERSION_INFO)
+-
+-CLEANFILES = amongo.C amongo.h
+-EXTRA_DIST = amongo.T amongo.Th
+-BUILT_SOURCES = amongo.h
+-amongo.$(objext): amongo.h
+-
+-MAINTAINERCLEANFILES = Makefile.in
+diff --git a/libamongo/abson.C b/libamongo/abson.C
+deleted file mode 100644
+index c487c65..0000000
+--- a/libamongo/abson.C
++++ /dev/null
+@@ -1,584 +0,0 @@
+-#include "abson.h"
+-#include "pub3expr.h"
+-#include <limits>
+-
+-namespace okmongo {
+-    template <size_t Sz>
+-    struct KeyHelper<rpc_bytes<Sz>> {
+-        static int32_t len(const rpc_bytes<Sz> &s) {
+-            return static_cast<int32_t>(s.size());
+-        }
+-        static const char *data(const rpc_bytes<Sz> &s) { return s.base(); }
+-    };
+-}  // namespace okmongo
+-
+-// Those macros are only used to hint the compiler's optimiser
+-// It is safe to define those as:
+-// #define LIKELY(x) x
+-// #define UNLIKELY(x) x
+-
+-#define LIKELY(x) __builtin_expect(x, 1)
+-#define UNLIKELY(x) __builtin_expect(x, 0)
+-
+-namespace {
+-// Adapted from markus kuhn (http://www.cl.cam.ac.uk/~mgk25/ucs/utf8_check.c)
+-// if modified is true then we are checking that the input string is valid.
+-// `modified utf8` string. We are a bit overly strict since we don't accept
+-// surrogates
+-
+-// If we ever find ourselves yearning for more speed we can use:
+-// https://floodyberry.wordpress.com/2007/04/14/utf-8-conversion-tricks
+-// For long strings we could also load (aligned) chunks in int64 and use a
+-// bitmask to check that all the bytes are ascii
+-// We pass `modified` as a template argument to make sure that the function
+-// gets specialised properly for the `false` case.
+-template<bool modified=false>
+-bool utf8_check_core(const char *in, size_t len) {
+-    assert(in != nullptr || len == 0);
+-    const unsigned char *s = reinterpret_cast<const unsigned char *>(in);
+-    const unsigned char *end = s + len;
+-    while (s < end) {
+-        if (UNLIKELY(*s == 0x00 && modified)) {
+-            return false;
+-        } else if (LIKELY(*s < 0x80)) { /* 0xxxxxxx */
+-            s++;
+-        } else if ((s[0] & 0xe0) == 0xc0) {
+-
+-            /* 110XXXXx 10xxxxxx */
+-            if (UNLIKELY(s + 2 > end)) {
+-                return false;
+-            }
+-            if (UNLIKELY((s[1] & 0xc0) != 0x80 ||
+-                         (s[0] & 0xfe) == 0xc0)) { /* overlong */
+-                if (!(modified && s[0] == 0xc0 && s[1] == 0x80)) {
+-                    return false;
+-                }
+-            }
+-            s += 2;
+-        } else if ((s[0] & 0xf0) == 0xe0) {
+-
+-            /* 1110XXXX 10Xxxxxx 10xxxxxx */
+-            if ((s + 3 > end) || (s[1] & 0xc0) != 0x80 ||
+-                (s[2] & 0xc0) != 0x80 ||
+-                (s[0] == 0xe0 && (s[1] & 0xe0) == 0x80) || /* overlong? */
+-                (s[0] == 0xed && (s[1] & 0xe0) == 0xa0) || /* surrogate? */
+-                (s[0] == 0xef && s[1] == 0xbf &&
+-                 (s[2] & 0xfe) == 0xbe)) { /* U+FFFE or U+FFFF? */
+-                return false;
+-            }
+-            s += 3;
+-        } else if ((s[0] & 0xf8) == 0xf0) {
+-
+-            /* 11110XXX 10XXxxxx 10xxxxxx 10xxxxxx */
+-            if ((s + 4) > end || (s[1] & 0xc0) != 0x80 ||
+-                (s[2] & 0xc0) != 0x80 || (s[3] & 0xc0) != 0x80 ||
+-                (s[0] == 0xf0 && (s[1] & 0xf0) == 0x80) || /* overlong? */
+-                (s[0] == 0xf4 && s[1] > 0x8f) ||
+-                s[0] > 0xf4) { /* > U+10FFFF? */
+-                return false;
+-            }
+-            s += 4;
+-        } else {
+-            return false;
+-        }
+-    }
+-    return true;
+-}
+-} // namespace
+-
+-
+-bool utf8_check(const char *in, size_t len) {
+-    return utf8_check_core<false>(in, len);
+-}
+-
+-bool modified_utf8_check(const char *in, size_t len) {
+-    return utf8_check_core<true>(in, len);
+-}
+-
+-namespace {
+-
+-bool dump_dict_cnt(okmongo::BsonWriter *w, xpub3_json_dict_t &dict);
+-bool dump_list_cnt(okmongo::BsonWriter *w, xpub3_json_list_t &dict);
+-
+-template <typename Key>
+-inline void write_uint32(okmongo::BsonWriter *w, Key k, uint32_t i) {
+-    return w->Element(k, static_cast<int64_t>(i));
+-}
+-
+-
+-template <typename Key>
+-inline void write_uint64(okmongo::BsonWriter *w, Key k, uint64_t src) {
+-    return w->Element(k, add_sign(src));
+-}
+-
+-
+-
+-template <typename K>
+-bool dump_key_value(okmongo::BsonWriter *w, K k, xpub3_json_t &json) {
+-    // TODO: check that the key is valid modified utf-8
+-    switch (json.typ) {
+-        case XPUB3_JSON_BOOL:
+-            w->Element(k, *json.json_bool);
+-            return true;
+-        case XPUB3_JSON_INT32:
+-            w->Element(k, *json.json_int32);
+-            return true;
+-        case XPUB3_JSON_UINT32:
+-            w->PushDocument(k);
+-            write_uint32(w, "%unsigned", *json.json_uint32);
+-            w->Pop();
+-            return true;
+-        case XPUB3_JSON_UINT64:
+-            w->PushDocument(k);
+-            write_uint64(w, "%unsigned", *json.json_uint64);
+-            w->Pop();
+-            return true;
+-        case XPUB3_JSON_INT64:
+-            w->Element(k, *json.json_int64);
+-            return true;
+-        case XPUB3_JSON_DOUBLE:
+-            w->Element(k, strtod(json.json_double->val.cstr(), nullptr));
+-            return true;
+-        case XPUB3_JSON_NULL:
+-            w->Element(k, nullptr);
+-            return true;
+-        case XPUB3_JSON_DICT:
+-            w->PushDocument(k);
+-            if (!dump_dict_cnt(w, *json.json_dict)) {
+-                return false;
+-            }
+-            w->Pop();
+-            return true;
+-        case XPUB3_JSON_LIST:
+-            w->PushArray(k);
+-            if (!dump_list_cnt(w, *json.json_list)) {
+-                return false;
+-            }
+-            w->Pop();
+-            return true;
+-        // TODO: check that the data is valid utf8
+-        case XPUB3_JSON_STRING:
+-            if (!utf8_check(json.json_string->base(),
+-                            json.json_string->size())) {
+-                warn << __func__ << "json string wasn't valid utf8\n";
+-                return false;
+-            }
+-            w->Element(k, json.json_string->base(), json.json_string->size());
+-            return true;
+-        case XPUB3_JSON_ERROR:
+-            return false;
+-    }
+-}
+-
+-bool dump_dict_cnt(okmongo::BsonWriter *w, xpub3_json_dict_t &dict) {
+-    for (auto &x : dict.entries) {
+-        if (!modified_utf8_check(x.key.base(), x.key.size())) {
+-            warn << __func__ << " json_dict key wasn't valid modified utf8\n";
+-            return false;
+-        }
+-        if (*x.key.base() == '%') {
+-            warn << __func__ << " json_dict key cannot start with a '%'\n";
+-            return false;
+-        }
+-        if (!dump_key_value(w, x.key, *x.value)) {
+-            return false;
+-        }
+-    }
+-    return true;
+-}
+-
+-bool dump_list_cnt(okmongo::BsonWriter *w, xpub3_json_list_t &lst) {
+-    int32_t i = 0;
+-    for (auto &x : lst.entries) {
+-        if (!dump_key_value(w, i++, x)) {
+-            return false;
+-        }
+-    }
+-    return true;
+-}
+-} // namespace
+-
+-bool rpc_traverse(rpc_bson_writer &w, xpub3_json_t &obj, const char *field) {
+-    field = w.get_key(field);
+-    if (!field) {
+-        w.error(nullptr, "null field");
+-        return false;
+-    }
+-    return dump_key_value(w.writer, field, obj);
+-}
+-
+-bool rpc_traverse(rpc_bson_reader &r, xpub3_json_t &obj, const char *field) {
+-    auto v = r.get(field, okmongo::BsonTag::kDocument);
+-    if (v.Empty()) {
+-        return false;
+-    }
+-    bson_expr_reader er;
+-    const ssize_t consumed = er.Consume(v.GetRawData(), v.GetRawDataSize());
+-    if (er.get_error()) {
+-        r.error(er.get_error_pos(), r.get_error());
+-        return false;
+-    }
+-    if (consumed != static_cast<ssize_t>(v.GetRawDataSize())) {
+-        r.error(field, "Internal error: underconsumed");
+-        return false;
+-    }
+-    ptr<pub3::expr_t> expr = er.get_res();
+-    if (!expr) {
+-        r.error(field, "Internal error: did not produce a value");
+-        return false;
+-    }
+-    bool ok = expr->to_xdr(&obj);
+-    if (!ok) {
+-        r.error(field,
+-                "Internal error: failed to convert pub expression to xdr.");
+-    }
+-    return ok;
+-}
+-
+-bool pub_fields(okmongo::BsonWriter *w, const pub3::expr_dict_t &pub) {
+-    xpub3_json_t json;
+-    bool ok = pub.to_xdr(&json);
+-    if (!ok || json.typ != XPUB3_JSON_DICT) {
+-        // Not a dict
+-        return false;
+-    }
+-    return dump_dict_cnt(w, *json.json_dict);
+-}
+-
+-bool pub_to_bson(okmongo::BsonWriter *w, ptr<pub3::expr_t> pub) {
+-    if (!pub) {
+-        return false;
+-    }
+-    xpub3_json_t json;
+-    pub->to_xdr(&json);
+-    if (json.typ != XPUB3_JSON_DICT) {
+-        // Not a dict
+-        return false;
+-    }
+-    w->Document();
+-    bool ok = dump_dict_cnt(w, *json.json_dict);
+-    w->Pop();
+-    return ok;
+-}
+-
+-ptr<pub3::expr_t> bson_to_pub(const str &s) {
+-    bson_expr_reader r;
+-    const ssize_t consumed = r.Consume(s.cstr(), s.len());
+-    if (consumed != static_cast<ssize_t>(s.len())) {
+-        return nullptr;
+-    }
+-    return r.get_res();
+-}
+-
+-//------------------------------------------------------------------------------
+-
+-void rpc_bson_writer::error(const char *fld, str s) {
+-    if (error_) {
+-        return;
+-    }
+-    strbuf buff ("[");
+-    bool empty = true;
+-    for (const auto& e: stack) {
+-        if (!empty) {
+-            buff << "::";
+-        }
+-        empty = false;
+-        buff << e.key;
+-    }
+-    if (fld) {
+-        if (!empty) {
+-            buff << "::";
+-        }
+-        empty = false;
+-        buff << fld;
+-    }
+-    buff << "] " << s;
+-    error_ = str(buff);
+-}
+-
+-void rpc_bson_writer::descend() {
+-    if (!stack.empty()) {
+-        bsw_stack_frame &s = stack.back();
+-        assert(s.state != bsw_stack_state::USED);
+-        if (s.state == bsw_stack_state::UNUSED) {
+-            assert(s.key);
+-            writer->PushDocument(s.key);
+-            s.state = bsw_stack_state::DOCUMENT;
+-        }
+-    }
+-}
+-
+-void rpc_bson_writer::close(const char *k) {
+-    assert(!stack.empty());
+-    bsw_stack_frame s = stack.pop_back();
+-    assert((!k && !s.key) || (strcmp(s.key, k) == 0));
+-    switch (s.state) {
+-        case bsw_stack_state::UNUSED:
+-            assert(s.key);
+-            writer->PushDocument(s.key);
+-            writer->Pop();
+-            break;
+-        case bsw_stack_state::DOCUMENT:
+-            writer->Pop();
+-            break;
+-        case bsw_stack_state::USED:
+-            break;
+-    }
+-}
+-
+-const char *rpc_bson_writer::get_key(const char *s) {
+-    if (s) {
+-        descend();
+-        return s;
+-    }
+-    assert(!stack.empty());
+-    bsw_stack_frame &back = stack.back();
+-    assert(back.key);
+-    assert(back.state == bsw_stack_state::UNUSED);
+-    back.state = bsw_stack_state::USED;
+-    return back.key;
+-}
+-
+-void rpc_enter_field(rpc_bson_writer &w, const char *k) {
+-    if (k!=nullptr) {
+-        w.descend();
+-        w.stack.push_back(bsw_stack_frame{k, bsw_stack_state::UNUSED});
+-    }
+-}
+-
+-void rpc_exit_field(rpc_bson_writer &w, const char *k) {
+-    if (k!=nullptr) {
+-        w.close(k);
+-    }
+-}
+-
+-#define SIMPLE_TRAV(T)                                           \
+-    bool rpc_traverse(rpc_bson_writer &w, T &v, const char *k) { \
+-        k = w.get_key(k);                                        \
+-        w.writer->Element(k, v);                                 \
+-        return true;                                             \
+-    }
+-
+-SIMPLE_TRAV(bool)
+-SIMPLE_TRAV(double)
+-SIMPLE_TRAV(int64_t)
+-SIMPLE_TRAV(int32_t)
+-
+-#undef SIMPLE_TRAV
+-
+-bool rpc_traverse(rpc_bson_writer &w, uint64_t &u, const char *k) {
+-    k = w.get_key(k);
+-    write_uint64(w.writer, k, u);
+-    return true;
+-}
+-
+-bool rpc_traverse(rpc_bson_writer &w, uint32_t &u, const char *k) {
+-    k = w.get_key(k);
+-    write_uint32(w.writer, k, u);
+-    return true;
+-}
+-
+-//------------------------------------------------------------------------------
+-
+-rpc_bson_reader::rpc_bson_reader(const okmongo::BsonValue &v) {
+-    stack_.push_back(stack_frame_t {v, nullptr});
+-}
+-
+-void rpc_bson_reader::enter_field(const okmongo::BsonValue &v, const char*fld) {
+-    stack_.push_back(stack_frame_t {v, fld});
+-}
+-
+-void rpc_bson_reader::exit_field() {
+-    stack_.pop_back();
+-}
+-
+-static const char* to_str(okmongo::BsonTag tg) {
+-    switch(tg) {
+-        case okmongo::BsonTag::kDouble:
+-            return "Double";
+-        case okmongo::BsonTag::kUtf8:
+-            return "Utf8";
+-        case okmongo::BsonTag::kDocument:
+-            return "Document";
+-        case okmongo::BsonTag::kArray:
+-            return "Array";
+-        case okmongo::BsonTag::kBindata:
+-            return "Bindata";
+-        case okmongo::BsonTag::kObjectId:
+-            return "ObjectId";
+-        case okmongo::BsonTag::kBool:
+-            return "Bool";
+-        case okmongo::BsonTag::kUtcDatetime:
+-            return "UtcDatetime";
+-        case okmongo::BsonTag::kNull:
+-            return "Null";
+-        case okmongo::BsonTag::kRegexp:
+-            return "Regexp";
+-        case okmongo::BsonTag::kJs:
+-            return "Js";
+-        case okmongo::BsonTag::kScopedJs:
+-            return "ScopedJs";
+-        case okmongo::BsonTag::kInt32:
+-            return "Int32";
+-        case okmongo::BsonTag::kTimestamp:
+-            return "Timestamp";
+-        case okmongo::BsonTag::kInt64:
+-            return "Int64";
+-        case okmongo::BsonTag::kMinKey:
+-            return "MinKey";
+-        case okmongo::BsonTag::kMaxKey:
+-            return "MaxKey";
+-        default:
+-            return "Unknown";
+-    }
+-}
+-
+-static str a_or_an(const char* in) {
+-    switch (*in) {
+-    case 'a':
+-    case 'e':
+-    case 'i':
+-    case 'o':
+-    case 'u':
+-    case 'A':
+-    case 'E':
+-    case 'I':
+-    case 'O':
+-    case 'U':
+-        return str(strbuf("an %s", in));
+-    default:
+-        return str(strbuf("a %s", in));
+-    }
+-}
+-
+-void rpc_bson_reader::error(const char *fld, okmongo::BsonTag tg,
+-                            const char *extra) {
+-    if (error_) {
+-        return;
+-    }
+-    okmongo::BsonValue v = get(fld);
+-    assert(tg != v.Tag());
+-    strbuf res("expected %s got %s",
+-               a_or_an(to_str(tg)).cstr(),
+-               a_or_an(to_str(v.Tag())).cstr());
+-    if (extra != nullptr) {
+-        res << "\nnote: " << extra;
+-    }
+-    return error(fld, str(res));
+-}
+-
+-void rpc_bson_reader::error(const char *fld, str s) {
+-    if (error_) {
+-        return;
+-    }
+-    strbuf buff ("[");
+-    bool empty = true;
+-    for (const auto& e: stack_) {
+-        if (e.field) {
+-            if (!empty) {
+-                buff << "::";
+-            }
+-            empty = false;
+-            buff << e.field;
+-        }
+-    }
+-    if (fld) {
+-        if (!empty) {
+-            buff << "::";
+-        }
+-        empty = false;
+-        buff << fld;
+-    }
+-    buff << "] " << s;
+-    error_ = str(buff);
+-}
+-
+- void rpc_bson_reader::error(const vec<str> &sub_pos, str s) {
+-     if (error_) {
+-         return;
+-     }
+-     for (auto e : sub_pos) {
+-         stack_.push_back(stack_frame_t{okmongo::BsonValue(), e.cstr()});
+-     }
+-     error(nullptr, s);
+-}
+-
+-bool rpc_bson_reader::empty() const {
+-    return stack_.empty();
+-}
+-
+-const okmongo::BsonValue rpc_bson_reader::get(const char *k) {
+-    assert(!empty());
+-    const auto &b = stack_.back();
+-    auto res = (k)? b.val.GetField(k) : b.val;
+-    if (res.Empty()) {
+-        error(k, "missing field");
+-    }
+-    return res;
+-}
+-
+-const okmongo::BsonValue rpc_bson_reader::get(const char *k,
+-                                              okmongo::BsonTag tag) {
+-    auto res = get(k);
+-    if (res.Empty()) {
+-        return res;
+-    }
+-    if (res.Tag() != tag) {
+-        error(k, tag);
+-    }
+-    return res;
+-}
+-
+-void rpc_enter_field(rpc_bson_reader &r, const char *k) {
+-    if (k != nullptr) {
+-        r.enter_field(r.get(k), k);
+-    }
+-}
+-
+-void rpc_exit_field(rpc_bson_reader &r, const char *k) {
+-    if (k != nullptr) {
+-        r.exit_field();
+-    }
+-}
+-
+-bool rpc_traverse(rpc_bson_reader &r, uint32_t &u, const char *k) {
+-    auto v = r.get(k, okmongo::BsonTag::kInt64);
+-    if (v.Empty()) {
+-        return false;
+-    }
+-    int64_t i = v.GetInt64();
+-    if (i < 0 ||
+-        i > static_cast<int64_t>(std::numeric_limits<uint32_t>::max())) {
+-        r.error(k, "uint32 out of bounds");
+-        return false;
+-    }
+-    u = static_cast<uint32_t>(i);
+-    return true;
+-}
+-
+-bool rpc_traverse(rpc_bson_reader &r, uint64_t &u, const char *k) {
+-    auto v = r.get(k, okmongo::BsonTag::kInt64);
+-    if (v.Empty()) {
+-        return false;
+-    }
+-    int64_t i = v.GetInt64();
+-    u = remove_sign(i);
+-    return true;
+-}
+-
+-#define SIMPLE_TRAV(T, BSON_NAME)                                \
+-    bool rpc_traverse(rpc_bson_reader &r, T &t, const char *k) { \
+-        auto v = r.get(k, okmongo::BsonTag::k##BSON_NAME);       \
+-        if (v.Empty()) {                                         \
+-            return false;                                        \
+-        }                                                        \
+-        t = v.Get##BSON_NAME();                                  \
+-        return true;                                             \
+-    }
+-
+-SIMPLE_TRAV(bool, Bool)
+-SIMPLE_TRAV(double, Double)
+-SIMPLE_TRAV(int64_t, Int64)
+-SIMPLE_TRAV(int32_t, Int32)
+-
+-#undef SIMPLE_TRAV
+diff --git a/libamongo/abson.h b/libamongo/abson.h
+deleted file mode 100644
+index e03fa80..0000000
+--- a/libamongo/abson.h
++++ /dev/null
+@@ -1,454 +0,0 @@
+-// -*- mode:c++ -*-
+-/***
+- * This helper contains helper functions to read in values that are serialised
+- * as bson. The helper functions work for pub objects or any types that has
+- * rpc_traverse functions defined (e.g.: types defined in prot files).
+- */
+-
+-#pragma once
+-#include "pub3expr.h"
+-#include "bson.h"
+-
+-
+-bool pub_to_bson(okmongo::BsonWriter *w, ptr<pub3::expr_t> pub);
+-bool pub_fields(okmongo::BsonWriter *w, const pub3::expr_dict_t &pub);
+-
+-ptr<pub3::expr_t> bson_to_pub(const str& s);
+-
+-// This class factors in the callbacks used to read bson values in. It is used
+-// both by `bson_expr_reader` and the query reader in ...
+-
+-template<class Parent>
+-class bson_expr_reader_engine  : public Parent {
+-protected:
+-    // We could use an mstr but this is more convenient
+-    std::string buff_;
+-    str key;
+-    struct stack_elt_t {
+-        str key;
+-        ptr<pub3::expr_t> expr;
+-    };
+-    vec<stack_elt_t> stack_;
+-
+-    str get_buff_cnt();
+-    void field(ptr<pub3::expr_t> e);
+-
+-    ptr<pub3::expr_dict_t> res_;
+-
+-    str error_;
+-    vec<str> err_stack_;
+-
+-    using Parent::Error;
+-public:
+-    str get_error() const { return error_; }
+-    const vec<str>& get_error_pos() const { return err_stack_; }
+-    void EmitFieldName(const char *data, const size_t len);
+-    void EmitError(str);
+-    void EmitOpenDoc();
+-    void EmitClose();
+-    void EmitOpenArray();
+-
+-    void EmitInt32(int32_t i);
+-    void EmitInt64(int64_t i);
+-    void EmitUtcDatetime(int64_t i);
+-    void EmitBool(bool b);
+-
+-    void EmitDouble(double d);
+-
+-    void EmitNull();
+-
+-    void EmitObjectId(const char *s);
+-
+-    void EmitUtf8(const char *s, size_t len);
+-
+-    ptr<pub3::expr_t> get_res() { return res_; }
+-};
+-
+-//------------------------------------------------------------------------------
+-
+-inline uint64_t remove_sign(int64_t i) {
+-    return static_cast<uint64_t>(i);
+-}
+-
+-// casting from unsigned to signed is unspecified (c++ 4.7), this is the inverse
+-// operation from the cast.
+-// Adapted from:
+-//  http://stackoverflow.com/questions/13150449/efficient-unsigned-to-signed-cast-avoiding-implementation-defined-behavior
+-inline int64_t add_sign(uint64_t u) {
+-    uint64_t umax_int64 =
+-        static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+-    int64_t min_int64 = std::numeric_limits<int64_t>::min();
+-    uint64_t umin_int64 = static_cast<uint64_t>(min_int64);
+-
+-    if (u <= static_cast<uint64_t>(umax_int64))
+-        return static_cast<int64_t>(u);
+-
+-    return static_cast<int64_t>(u - umin_int64) + min_int64;
+-}
+-
+-
+-//------------------------------------------------------------------------------
+-
+-// This is a custom reader that parses pub_exprs in...
+-class bson_expr_reader : public bson_expr_reader_engine<
+-                                 okmongo::BsonReader<bson_expr_reader>> {};
+-
+-template<class Parent>
+-str bson_expr_reader_engine<Parent>::get_buff_cnt() {
+-    str res(buff_.data(), buff_.size());
+-    buff_.clear();
+-    return res;
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::field(ptr<pub3::expr_t> e) {
+-    auto &v = stack_.back();
+-    ptr<pub3::expr_dict_t> d= v.expr->to_dict();
+-    if (d) {
+-        d->insert(key, e);
+-    } else {
+-        ptr<pub3::expr_list_t> l = v.expr->to_list();
+-        if (l) {
+-            l->push_back(e);
+-        } else {
+-            Error("Found another field in a document representing a value that "
+-                  "is neither an array or a document");
+-        }
+-    }
+-    key = nullptr;
+-}
+-
+-template <class Parent>
+-void bson_expr_reader_engine<Parent>::EmitFieldName(const char *data,
+-                                                    const size_t len) {
+-    if (len == 0) {
+-        key = get_buff_cnt();
+-    } else {
+-        buff_.append(data, len);
+-    }
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitError(str s) {
+-    for (const auto& e : stack_) {
+-        if (e.key == nullptr) {
+-            continue;
+-        }
+-        err_stack_.push_back(e.key);
+-    }
+-    if (key) {
+-        err_stack_.push_back(key);
+-    }
+-    error_ = s;
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitOpenDoc() {
+-    stack_.push_back(stack_elt_t{key, pub3::expr_dict_t::alloc()});
+-    key = nullptr;
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitClose() {
+-    if (stack_.size() == 1) {
+-        res_ = stack_.back().expr->to_dict();
+-        stack_.pop_back();
+-        return;
+-    }
+-    const auto back = stack_.back();
+-    key = back.key;
+-    ptr<pub3::expr_t> e = back.expr;
+-    stack_.pop_back();
+-    field(e);
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitOpenArray() {
+-    auto l = pub3::expr_list_t::alloc();
+-    stack_.push_back(stack_elt_t{key, pub3::expr_list_t::alloc()});
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitInt32(int32_t i) {
+-    field(pub3::expr_int_t::alloc(i));
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitInt64(int64_t i) {
+-    if (key == "%unsigned") {
+-        ptr<pub3::expr_dict_t> d = stack_.back().expr->to_dict();
+-        if (!d || d->size() != 0) {
+-            Error("Field error: %unsigned should be the only key in an empty "
+-                  "dictionary.");
+-        } else {
+-            stack_.back().expr = pub3::expr_uint_t::alloc(remove_sign(i));
+-        }
+-    } else {
+-        field(pub3::expr_int_t::alloc(i));
+-    }
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitUtcDatetime(int64_t i) {
+-    field(pub3::expr_int_t::alloc(i));
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitBool(bool b) {
+-    field(pub3::expr_bool_t::alloc(b));
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitDouble(double d) {
+-    field(pub3::expr_double_t::alloc(d));
+-}
+-
+-template <class Parent>
+-void bson_expr_reader_engine<Parent>::EmitNull() {
+-    field(pub3::expr_null_t::alloc());
+-}
+-
+-template<class Parent>
+-void bson_expr_reader_engine<Parent>::EmitObjectId(const char *s) {
+-    field(pub3::expr_str_t::alloc(str(s, 12)));
+-}
+-
+-template <class Parent>
+-void bson_expr_reader_engine<Parent>::EmitUtf8(const char *s, size_t len) {
+-    if (len == 0) {
+-        field(pub3::expr_str_t::alloc(get_buff_cnt()));
+-    } else {
+-        buff_.append(s, len);
+-    }
+-}
+-
+-//-----------------------------------------------------------------------------
+-
+-enum class bsw_stack_state : uint8_t {
+-    UNUSED,
+-    DOCUMENT,
+-    USED,
+-};
+-
+-struct bsw_stack_frame {
+-    const char* key;
+-    bsw_stack_state state;
+-};
+-
+-class rpc_bson_writer {
+-    str error_ = nullptr;
+-public:
+-    okmongo::BsonWriter *writer;
+-    vec<bsw_stack_frame> stack;
+-
+-    explicit rpc_bson_writer(okmongo::BsonWriter *w): writer(w){};
+-    void descend();
+-    void close(const char *k);
+-    const char *get_key(const char *s);
+-    void error(const char *field, str msg);
+-    str get_error() const { return error_; };
+-};
+-
+-void rpc_enter_field(rpc_bson_writer &w, const char *k);
+-void rpc_exit_field(rpc_bson_writer &w, const char *k);
+-
+-template <class R, size_t n>
+-bool rpc_traverse(rpc_bson_writer &w,
+-                  rpc_vec<R, n> &obj,
+-                  const char *field = nullptr) {
+-    field = w.get_key(field);
+-    w.writer->PushArray(field);
+-    const size_t len = obj.size();
+-    for (size_t i = 0; i < len; i++) {
+-        std::string k = std::to_string(i);
+-        if (!rpc_traverse(w, obj[i], k.c_str())) {
+-            w.writer->Pop();
+-            return false;
+-        };
+-    }
+-    w.writer->Pop();
+-    return true;
+-}
+-
+-template <class R>
+-inline bool rpc_traverse(rpc_bson_writer &w, rpc_ptr<R> &obj,
+-                         const char *field = nullptr) {
+-    field = w.get_key(field);
+-    if (!obj) {
+-        w.writer->Element(field, nullptr);
+-        return true;
+-    }
+-    return rpc_traverse (w, *obj, field);
+-}
+-
+-bool utf8_check(const char *in, size_t len);
+-bool modified_utf8_check(const char *in, size_t len);
+-
+-bool rpc_traverse(rpc_bson_writer &w, bool &v, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_writer &w, double &v, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_writer &w, int64_t &v, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_writer &w, int32_t &v, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_writer &w, uint64_t &u, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_writer &w, uint32_t &u, const char *k = nullptr);
+-
+-template <size_t n>
+-bool rpc_traverse(rpc_bson_writer &w, rpc_str<n> &s, const char *k = nullptr) {
+-    k = w.get_key(k);
+-    if (!s) {
+-        w.writer->Element(k, nullptr);
+-        return true;
+-    }
+-    if (!(utf8_check(s.cstr(), s.len()))) {
+-        w.error(k, "Invalid utf8");
+-        return false;
+-    }
+-    w.writer->Element(k, s.cstr(), s.len());
+-    return true;
+-}
+-
+-template <size_t n>
+-bool rpc_traverse(rpc_bson_writer &w, rpc_bytes<n> &b,
+-                  const char *k = nullptr) {
+-    k = w.get_key(k);
+-    w.writer->ElementBindata(k, okmongo::BindataSubtype::kGeneric,
+-                             b.base(), b.size());
+-    return true;
+-}
+-
+-bool rpc_traverse(rpc_bson_writer &w, xpub3_json_t &obj,
+-                  const char *field = nullptr);
+-
+-//------------------------------------------------------------------------------
+-// XDR reader
+-//------------------------------------------------------------------------------
+-
+-// This class is passed to rpc_traverse to read a value from the a raw bson
+-// value (as a char*).
+-class rpc_bson_reader {
+-private:
+-    str error_;
+-public:
+-    struct stack_frame_t {
+-       const okmongo::BsonValue val;
+-       const char* field;
+-    };
+-
+-    vec<stack_frame_t> stack_;
+-
+-    void enter_field(const okmongo::BsonValue &v, const char*);
+-    void exit_field();
+-
+-    bool empty() const;
+-
+-    void error(const char * fld, str);
+-    void error(const vec<str> &subpos, str);
+-    void error(const char *fld, okmongo::BsonTag, const char *extra = nullptr);
+-    str get_error() const { return error_; }
+-
+-    rpc_bson_reader(const okmongo::BsonValue &v);
+-    const okmongo::BsonValue get(const char *k);
+-    const okmongo::BsonValue get(const char *k, okmongo::BsonTag t);
+-};
+-
+-void rpc_enter_field(rpc_bson_reader &r, const char *k);
+-void rpc_exit_field(rpc_bson_reader &r, const char *k);
+-
+-template <class R>
+-bool rpc_traverse(rpc_bson_reader &r, rpc_ptr<R> &obj,
+-                  const char *field = nullptr) {
+-    auto v = r.get(field);
+-    if (v.Empty()) {
+-        return false;
+-    }
+-    if (v.Tag() == okmongo::BsonTag::kNull) {
+-        obj.clear();
+-        return true;
+-    }
+-    return rpc_traverse (r, *obj.alloc(), field);
+-}
+-
+-template <class R, size_t n>
+-bool rpc_traverse(rpc_bson_reader &r, rpc_vec<R, n> &obj,
+-                  const char *field = nullptr) {
+-    auto v = r.get(field, okmongo::BsonTag::kArray);
+-    if (v.Empty()) {
+-        return false;
+-    }
+-    bool ok = true;
+-    okmongo::BsonValueIt it(v);
+-    while (!it.Done() && ok) {
+-        const char *k = it.key();
+-        r.enter_field(it, field);
+-        ok = rpc_traverse(r, obj.push_back());
+-        r.exit_field();
+-        if (ok) {
+-            ok = it.next();
+-            if (!ok) {
+-                r.error(field, str(strbuf("Invalid field after %s", k)));
+-            }
+-        }
+-    }
+-    return ok;
+-}
+-
+-
+-template <size_t n>
+-bool rpc_traverse(rpc_bson_reader &r, rpc_str<n> &s, const char *k = nullptr) {
+-    auto v = r.get(k);
+-    if (v.Tag() == okmongo::BsonTag::kNull) {
+-        s = nullptr;
+-        return true;
+-    }
+-    if (v.Tag() != okmongo::BsonTag::kUtf8) {
+-        r.error(k, okmongo::BsonTag::kUtf8);
+-        return false;
+-    }
+-    s = rpc_str<n>(v.GetData(), v.GetDataSize());
+-    return true;
+-}
+-
+-template <size_t n>
+-bool rpc_traverse(rpc_bson_reader &r, rpc_bytes<n> &s,
+-                  const char *k = nullptr) {
+-    auto v = r.get(k,  okmongo::BsonTag::kBindata);
+-    if(v.Empty()) {
+-        return false;
+-    }
+-    if (v.GetBinSubstype() != okmongo::BindataSubtype::kGeneric) {
+-        r.error(k, "Wrong bin-data subtype");
+-        return false;
+-    }
+-    int32_t len = v.GetDataSize();
+-    s.setsize(len);
+-    std::memcpy(s.base(), v.GetData(), len);
+-    return true;
+-}
+-
+-bool rpc_traverse(rpc_bson_reader &r, bool &v, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_reader &r, double &v, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_reader &r, int32_t &v, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_reader &r, int64_t &v, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_reader &r, uint32_t &u, const char *k = nullptr);
+-bool rpc_traverse(rpc_bson_reader &r, uint64_t &v, const char *k = nullptr);
+-
+-// These are helper macros that allow to override the behaviour of rpc_traverse
+-// on unions...
+-#define FLAT_UNION_TRAVERSE_HELPER(_TYPE, _FIELD) rpc_traverse(t, *obj._FIELD)
+-
+-#define FLAT_UNION_TRAVERSE(_OUT_TYPE, _IN_TYPE, _TAG_FLD)               \
+-    bool rpc_traverse(_OUT_TYPE &t, _IN_TYPE &obj, const char *field) {  \
+-        bool ret = true;                                                 \
+-        rpc_enter_field(t, field);                                       \
+-        auto tag = obj._TAG_FLD;                                         \
+-        if (!rpc_traverse(t, tag, #_TAG_FLD)) {                          \
+-            ret = false;                                                 \
+-        } else {                                                         \
+-            if (tag != obj._TAG_FLD) obj.set_##_TAG_FLD(tag);            \
+-                                                                         \
+-            rpcunion_switch_##_IN_TYPE(obj._TAG_FLD,                     \
+-                                       ret = FLAT_UNION_TRAVERSE_HELPER, \
+-                                       ret = true, ret = false);         \
+-        }                                                                \
+-        rpc_exit_field(t, field);                                        \
+-        return ret;                                                      \
+-    }
+diff --git a/libamongo/amongo.T b/libamongo/amongo.T
+deleted file mode 100644
+index d35e5cd..0000000
+--- a/libamongo/amongo.T
++++ /dev/null
+@@ -1,406 +0,0 @@
+-// -*- mode:c++ -*-
+-#include "amongo.h"
+-#include "tame_io.h" // tame::wait{read, write}
+-#include "async.h"   // tcpconnect
+-#include "amisc.h"   // arandom
+-#include "abson.h"
+-#include "mongo.h"
+-
+-#include <cstring>
+-
+-extern "C" {
+-#include <time.h>
+-}
+-
+-#define SHORT_FILE \
+-    (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+-
+-#define ERRLINE \
+-    warn << SHORT_FILE << "[" << __LINE__ << "] in " << __func__ << ": "
+-
+-#define PUNIX_ERROR                                        \
+-    do {                                                   \
+-        int err = errno;                                   \
+-        ERRLINE << "unix error " << strerror(err) << "\n"; \
+-    } while (0)
+-
+-namespace {
+-class QueryRespReader : public AVRAdapter<bson_expr_reader_engine<
+-                                okmongo::ResponseReader<QueryRespReader>>> {
+-    ptr<pub3::expr_list_t> lst_;
+-
+-public:
+-    explicit QueryRespReader(
+-            ptr<pub3::expr_list_t> v = pub3::expr_list_t::alloc())
+-        : lst_(v) {}
+-
+-    void EmitStart(const okmongo::ResponseHeader &hdr) {
+-        if (hdr.number_returned > 0) {
+-            lst_->reserve(lst_->size() + hdr.number_returned);
+-        }
+-    }
+-
+-    void EmitDocumentDone() {
+-        if (!error_) {
+-            lst_->push_back(res_);
+-        }
+-        res_ = nullptr;
+-    }
+-
+-    ptr<pub3::expr_list_t> get_res() {
+-        if (state_ != State::kDone) {
+-            return nullptr;
+-        }
+-        return lst_;
+-    }
+-};
+-
+-struct timespec get_monotonic_time() {
+-    struct timespec res;
+-#ifndef _POSIX_TIMERS
+-#error "Your os doesn't support clock_get_time..."
+-#endif
+-#ifdef CLOCK_MONOTONIC_COARSE
+-    int ok = clock_gettime(CLOCK_MONOTONIC_COARSE, &res);
+-#elif defined _POSIX_MONOTONIC_CLOCK
+-    int ok = clock_gettime(CLOCK_MONOTONIC, &res);
+-#else
+-    int ok = clock_gettime(CLOCK_REALTIME, &res);
+-#endif
+-    if (ok == -1) {
+-        res.tv_sec = 0;
+-        res.tv_nsec = 0;
+-    }
+-    return res;
+-}
+-
+- struct timespec get_future_time(int ms) {
+-     if (ms <= 0) {
+-         struct timespec res;
+-         res.tv_sec = std::numeric_limits<time_t>::max();
+-         res.tv_nsec = 999999999;
+-         return res;
+-     }
+-     time_t tv_sec = ms / 1000;
+-     long tv_nsec = (ms % 1000) * 1000000;
+-     struct timespec res = get_monotonic_time();
+-     res.tv_nsec += tv_nsec;
+-     if (res.tv_nsec >= 1000000000) {
+-         res.tv_nsec -= 1000000000;
+-         res.tv_sec += 1;
+-     }
+-     res.tv_sec += tv_sec;
+-     return res;
+-}
+-
+-const struct timespec &min(const struct timespec &ts1,
+-                           const struct timespec &ts2) {
+-    if (ts1.tv_sec < ts2.tv_sec || (ts1.tv_sec == ts2.tv_sec &&
+-                                    ts1.tv_nsec < ts2.tv_nsec)) {
+-        return ts1;
+-    }
+-    return ts2;
+-}
+-
+-timecb_t *wait_until(const struct timespec &expiration, evv_t ev) {
+-    struct timespec now = get_monotonic_time();
+-    long tv_nsec = 0;
+-    time_t tv_sec = 0;
+-    if (now.tv_sec > expiration.tv_sec || (now.tv_sec == expiration.tv_sec &&
+-                                           now.tv_nsec >= expiration.tv_nsec)) {
+-        // already timedout
+-    } else if (now.tv_nsec > expiration.tv_nsec) {
+-        tv_sec = expiration.tv_sec - now.tv_sec - 1;
+-        tv_nsec = expiration.tv_nsec - now.tv_nsec + 1000000000;
+-    } else {
+-        tv_sec = expiration.tv_sec - now.tv_sec;
+-        tv_nsec = expiration.tv_nsec - now.tv_nsec;
+-    }
+-    return delaycb(tv_sec, tv_nsec, ev);
+-}
+-
+-void timed_waitread(int fd, const struct timespec& exp, evb_t, CLOSURE);
+-void timed_waitwrite(int fd, const struct timespec& exp, evb_t, CLOSURE);
+-void timed_tcpconnect(str hostname, u_int16_t port, const struct timespec &exp,
+-                      evi_t ev, CLOSURE);
+-void timed_tcpconnect(const mongo_connection_fields_base_t &mc,
+-                      const struct timespec &exp, evi_t ev, CLOSURE);
+-
+-tamed void timed_waitread(int fd, const struct timespec& exp, evb_t ev) {
+-    tvars {
+-        rendezvous_t<bool> rv(__FILE__, __LINE__);
+-        bool ok;
+-        timecb_t *tcb;
+-    }
+-    tcb = wait_until(exp, mkevent(rv, false));
+-    tame::waitread(fd, mkevent(rv, true));
+-    twait(rv, ok);
+-    if (!ok) {
+-        tame::clearread(fd);
+-    } else {
+-        timecb_remove(tcb);
+-    }
+-    ev->trigger(ok);
+-}
+-
+-tamed void timed_waitwrite(int fd, const struct timespec& exp, evb_t ev) {
+-    tvars {
+-        rendezvous_t<bool> rv(__FILE__, __LINE__);
+-        bool ok;
+-        timecb_t *tcb;
+-    }
+-    tcb = wait_until(exp, mkevent(rv, false));
+-    tame::waitwrite(fd, mkevent(rv, true));
+-    twait(rv, ok);
+-    if (!ok) {
+-        tame::clearwrite(fd);
+-    } else {
+-        timecb_remove(tcb);
+-    }
+-    ev->trigger(ok);
+-}
+-
+-tamed void timed_tcpconnect(str hostname, u_int16_t port,
+-                            const struct timespec &exp, evi_t ev) {
+-    tvars {
+-        rendezvous_t<bool> rv(__FILE__, __LINE__);
+-        bool ok;
+-        tcpconnect_t *tcp;
+-        timecb_t *tcb;
+-    }
+-    tcb = wait_until(exp, mkevent(rv, false));
+-    tcp = tcpconnect(hostname, port, mkevent_rs(ev->slot_set (), rv, true));
+-    twait(rv, ok);
+-    if (!ok) {
+-        tcpconnect_cancel(tcp);
+-        ev->trigger(-1);
+-    } else {
+-        timecb_remove(tcb);
+-        ev->trigger_no_assign();
+-    }
+-}
+-
+-tamed void timed_tcpconnect(const mongo_connection_fields_base_t& mc,
+-                            const struct timespec &exp, evi_t ev) {
+-    tvars {
+-        int res(-1);
+-        size_t cnt(0);
+-        size_t idx(0);
+-        size_t offset;
+-        struct timespec ts;
+-    }
+-    if (mc.hosts_.size() == 0) {
+-        warn << "Mongo: cannot connect with an empty host list.\n";
+-        return ev->trigger(-1);
+-    }
+-    offset = arandom() % mc.hosts_.size();
+-    while (res < 0 && cnt < mc.hosts_.size()) {
+-        idx = (cnt + offset) % mc.hosts_.size();
+-        ts = get_future_time(mc.connect_timeout_);
+-        twait {
+-            timed_tcpconnect(mc.hosts_[idx].hostname,
+-                             mc.hosts_[idx].port,
+-                             min(exp, ts),
+-                             mkevent(res));
+-        }
+-        cnt++;
+-    }
+-    ev->trigger(res);
+-}
+-
+-void run(mongo_connection_base_t *, const okmongo::BsonWriter &w,
+-         AbstractValueReader *r, evv_t ev, CLOSURE);
+-
+-tamed void run(mongo_connection_base_t *mc, const okmongo::BsonWriter &w,
+-               AbstractValueReader *r, evv_t ev) {
+-    tvars {
+-        const char *data(w.data());
+-        size_t len(w.len());
+-        struct timespec exp;
+-        bool ok;
+-    }
+-    exp = get_future_time(mc->timeout_);
+-
+-    if (mc->socket_ == -1) {
+-        r->AVRReportError("Connection closed");
+-        return ev->trigger();
+-    } else if (mc->socket_ == 0) {
+-        twait {
+-            timed_tcpconnect(*mc, exp, mkevent(mc->socket_));
+-        }
+-        if (mc->socket_ <= 0) {
+-            mc->socket_ = 0;
+-            r->AVRReportError("Failed to connect");
+-            return ev->trigger();
+-        }
+-    }
+-
+-    while (len > 0 && !r->AVRIsDone()) {
+-        twait { timed_waitwrite(mc->socket_, exp, mkevent(ok)); }
+-        if (!ok) {
+-            r->AVRReportError("Timeout while sending");
+-            mc->abort();
+-            return ev->trigger();
+-        }
+-        ssize_t res = ::write(mc->socket_, data, len);
+-        switch (res) {
+-        case -1:
+-            if (errno == EINTR) {
+-                continue;
+-            }
+-            r->AVRReportError(strbuf("Unix error while sending: %s",
+-                                     strerror(errno)));
+-            mc->abort();
+-            return ev->trigger();
+-        case 0:
+-            r->AVRReportError("Connection closed while sending");
+-            mc->abort();
+-            return ev->trigger();
+-        default:
+-            len -= static_cast<size_t>(res);
+-            data += res;
+-        }
+-    }
+-
+-    while (!r->AVRIsDone()) {
+-        twait { timed_waitread(mc->socket_, exp, mkevent(ok)); }
+-        if (!ok) {
+-            r->AVRReportError("Timeout while reading");
+-            mc->abort();
+-            return ev->trigger();
+-        }
+-        ssize_t res = read(mc->socket_, mc->scratch_,
+-                           mongo_connection_base_t::kScratchLen);
+-        switch (res) {
+-            case -1:
+-                if (errno == EINTR) {
+-                    continue;
+-                }
+-                r->AVRReportError(strbuf("Unix error while reading: %s",
+-                                         strerror(errno)));
+-                mc->abort();
+-                return ev->trigger();
+-            case 0:
+-                r->AVRReportError("Connection closed while reading");
+-                mc->abort();
+-                return ev->trigger();
+-            default:
+-                int32_t consumed = r->AVRConsume(mc->scratch_, res);
+-                if (consumed != res) {
+-                    r->AVRReportError("Number of bytes read did not match the "
+-                                      "number we got on the wire");
+-                    mc->abort();
+-                    return ev->trigger();
+-                }
+-        }
+-    }
+-    ev->trigger();
+-}
+-
+-}
+-
+-namespace okmongo {
+-template <>
+-bool BsonWriteFields<ptr<pub3::expr_dict_t>>(
+-        BsonWriter *w, ptr<pub3::expr_dict_t> const &dict) {
+-    if (!dict) {
+-        return false;
+-    }
+-    return pub_fields(w, *dict);
+-}
+-}
+-
+-tamed void mongo_connection_base_t::run(const okmongo::BsonWriter &qry,
+-                                        AbstractValueReader *r, evv_t ev) {
+-    twait { lock_.acquire (tame::lock_t::EXCLUSIVE, mkevent ()); }
+-    twait { ::run(this, qry, r, mkevent()); }
+-    lock_.release();
+-    ev->trigger();
+-}
+-
+-mongo_connection_t::mongo_connection_t(str hostname, str db, uint16_t port) {
+-    hosts_.push_back(mongo_host_t(hostname, port));
+-    db_ = db;
+-    socket_ = 0;
+-    requestid_ = 0;
+-}
+-
+-mongo_connection_t::mongo_connection_t(const vec<mongo_host_t> &hosts, str db,
+-                                       int timeout, int connect_timeout) {
+-    hosts_ = hosts;
+-    db_ = db;
+-    socket_ = 0;
+-    requestid_ = 0;
+-    timeout_ = timeout;
+-    connect_timeout_ = connect_timeout_;
+-}
+-
+-
+-void mongo_connection_base_t::abort() {
+-    if (socket_ == 0) {
+-        return;
+-    }
+-    int res = ::close(socket_);
+-    // Do not retry on EINTR after a close!
+-    if (res == -1 && errno != EINTR) {
+-        PUNIX_ERROR;
+-    }
+-    socket_ = 0;
+-    requestid_ = 0;
+-}
+-
+-tamed void mongo_connection_t::close(evv_t::ptr ev) {
+-    twait { lock_.acquire (tame::lock_t::EXCLUSIVE, mkevent ()); }
+-    int res = ::close(socket_);
+-    // Do not retry on EINTR after a close!
+-    if (res == -1 && errno != EINTR) {
+-        PUNIX_ERROR;
+-    }
+-    socket_ = -1;
+-    lock_.release();
+-    if (ev) {
+-        ev->trigger();
+-    }
+-}
+-
+-tamed void mongo_connection_t::query(str collection,
+-                                     const ptr<pub3::expr_dict_t> qry,
+-                                     pub3::xlev_t ev) {
+-    tvars {
+-        okmongo::BsonWriter out;
+-        QueryRespReader r;
+-    }
+-    okmongo::FillQueryOp(&out, ++requestid_, db_.cstr(), collection.cstr(),
+-                         qry);
+-    twait {
+-        run(out, &r, mkevent());
+-    }
+-    ev->trigger(r.get_res());
+-}
+-
+-tamed void mongo_connection_base_t::run_cmd(const okmongo::BsonWriter &cmd,
+-                                            evb_t ev) {
+-    tvars {
+-        AVRAdapter<okmongo::OpResponseParser> r;
+-    }
+-    twait {
+-        run(cmd, &r, mkevent());
+-    }
+-    auto &res = r.Result();
+-    for (auto &e : res.errors) {
+-        ERRLINE << "Mongo error: " << e.msg.c_str() << "\n";
+-    }
+-    if (!res.ok) {
+-        warn << "Mongo error: Not ok " << res.ok << "\n";
+-    }
+-    ev->trigger(res.ok && res.errors.empty());
+-}
+-
+-tamed void mongo_connection_base_t::run_cmd(ref<const okmongo::BsonWriter> cmd,
+-                                            evb_t ev) {
+-    tvars {
+-        bool ok(true);
+-    }
+-    twait { run_cmd(*cmd, mkevent(ok)); }
+-    ev->trigger(ok);
+-}
+diff --git a/libamongo/amongo.Th b/libamongo/amongo.Th
+deleted file mode 100644
+index 6d4b521..0000000
+--- a/libamongo/amongo.Th
++++ /dev/null
+@@ -1,424 +0,0 @@
+-// -*- mode:c++ -*-
+-#pragma once
+-
+-#include "pub3expr.h"
+-#include "abson.h"
+-#include "tame_io.h" // tame::wait{read, write}
+-#include "async.h" // tcpconnect
+-#include "tame_lock.h"
+-#include "mongo.h"
+-// okmongo::ResponseReader
+-
+-// To avoid multiple inheritance nightmares we use a different set of names for
+-// those functions...
+-class AbstractValueReader {
+-public:
+-    virtual void AVRReportError(str) = 0;
+-    virtual bool AVRIsDone() const = 0;
+-    virtual int32_t AVRConsume(const char *, int) = 0;
+-};
+-
+-template <typename Parent>
+-class AVRAdapter : public Parent, public AbstractValueReader {
+-public:
+-    using Parent::Parent;
+-
+-    void AVRReportError(str s) final {
+-        Parent::Error(s.cstr());
+-    }
+-
+-    bool AVRIsDone() const final { return Parent::Done(); }
+-
+-    int32_t AVRConsume(const char *s, int len) final {
+-        return Parent::Consume(s, len);
+-    }
+-};
+-
+-struct mongo_host_t {
+-    str hostname;
+-    uint16_t port;
+-    explicit mongo_host_t(str h, uint16_t p = 27017): hostname(h), port(p) {}
+-};
+-
+-struct mongo_connection_fields_base_t {
+-    vec<mongo_host_t> hosts_;
+-    str db_;
+-    int socket_;
+-    int32_t requestid_;
+-    tame::lock_t lock_;
+-    int timeout_ = 2000; // in ms
+-    int connect_timeout_ = 100;
+-};
+-
+-struct mongo_connection_base_t : public mongo_connection_fields_base_t {
+-    static constexpr int kScratchLen =
+-        4096 - sizeof(mongo_connection_fields_base_t);
+-    char scratch_[kScratchLen];
+-
+-    void run_cmd(ref<const okmongo::BsonWriter> w, evb_t ev, CLOSURE);
+-    void run_cmd(const okmongo::BsonWriter &w, evb_t ev, CLOSURE);
+-
+-    void run(const okmongo::BsonWriter &qry, AbstractValueReader *r, evv_t,
+-             CLOSURE);
+-
+-    void abort();
+-};
+-
+-struct mongo_result_t {
+-    str error;
+-    int cnt;
+-};
+-
+-typedef event<mongo_result_t>::ref amongo_res_ev_t ;
+-
+-class mongo_connection_t : protected mongo_connection_base_t {
+-    // TODO: error reporting.
+-public:
+-    int32_t get_requestid() { return requestid_++; }
+-    str get_db() const { return db_; }
+-
+-    bool is_busy() const { return lock_.mode() != tame::lock_t::OPEN; }
+-
+-    using mongo_connection_base_t::run_cmd;
+-    using mongo_connection_base_t::run;
+-
+-    mongo_connection_t(str hostname, str db, uint16_t port = 27017);
+-
+-    mongo_connection_t(const vec<mongo_host_t> &hosts, str db,
+-                       int timeout_ = 2000, int connect_timeout_ = 100);
+-
+-    //--------------------------------------------------------------------------
+-    // Pub functions
+-    //--------------------------------------------------------------------------
+-
+-    // Specialized for pub..
+-    void query(str collection, const ptr<pub3::expr_dict_t> qry,
+-               pub3::xlev_t ev, CLOSURE);
+-
+-    template <typename Res, typename Qry>
+-    void query(str collection, const Qry &qry, Res *out, amongo_res_ev_t ev);
+-
+-    template <typename Res, typename Qry, typename Sel>
+-    void query(str collection, const Qry &qry, Res *out, amongo_res_ev_t ev,
+-               const Sel &sel);
+-
+-    template <typename T>
+-    void remove(str collection, const T &qry, evb_t ev);
+-
+-    template <typename T>
+-    void insert(str collection, const T &val, evb_t ev);
+-
+-    template <typename T>
+-    void insert(str collection, const vec<T> &vals, evb_t ev);
+-
+-    void close(evv_t::ptr, CLOSURE);
+-};
+-
+-//------------------------------------------------------------------------------
+-// implementation
+-//------------------------------------------------------------------------------
+-
+-namespace okmongo {
+-
+-template <>
+-bool BsonWriteFields<ptr<pub3::expr_dict_t>>(
+-        BsonWriter *w, ptr<pub3::expr_dict_t> const &dict);
+-
+-template <typename T>
+-bool BsonWriteFields(BsonWriter *w, const T &t) {
+-    rpc_bson_writer bw(w);
+-    bool ok = rpc_traverse(bw, const_cast<T &>(t));
+-    if (!ok && bw.get_error()) {
+-        warn << __func__  << ": " << bw.get_error() << "\n";
+-    }
+-    return ok;
+-}
+-
+-}  // namespace okmongo
+-
+-template <typename T>
+-class amongo_rpc_bson_reader
+-        : public AVRAdapter<
+-                  okmongo::BsonValueResponseReader<amongo_rpc_bson_reader<T>>> {
+-    str error_;
+-    T *out_;
+-    int cnt_ = 0;
+-public:
+-    static const bool multi = false;
+-
+-    void ResetParsing() { this->Reset(); }
+-
+-    amongo_rpc_bson_reader(T *out) : out_(out){}
+-
+-    void EmitError(str msg) {
+-        if (!error_) {
+-            error_ = msg;
+-            out_ = nullptr;
+-            cnt_ = -1;
+-        }
+-    }
+-
+-    void EmitBsonValue(const okmongo::BsonValue &bv) {
+-        if (error_) {
+-            return;
+-        }
+-        if (cnt_ == 1) {
+-            this->Error("Got more than one value");
+-        }
+-        rpc_bson_reader rdr(bv);
+-        bool ok = rpc_traverse(rdr, *out_);
+-        if (ok) {
+-            cnt_++;
+-        } else {
+-            str error = rdr.get_error();
+-            if (error) {
+-                strbuf ebuff("Parse error: ");
+-                ebuff << error;
+-                this->Error(str(ebuff));
+-            } else {
+-                this->Error("Failed to parse value");
+-            }
+-        }
+-    }
+-
+-    bool ok() const {
+-        return !error_;
+-    }
+-
+-    mongo_result_t get_res() {
+-        if (!this->Done()) {
+-            this->Error("Partial read!");
+-        }
+-        if (error_) {
+-            return {error_, -1};
+-        }
+-        return {nullptr, cnt_};
+-    }
+-};
+-
+-template <typename T>
+-class amongo_rpc_bson_reader<vec<T>>
+-        : public AVRAdapter<okmongo::BsonValueResponseReader<
+-                  amongo_rpc_bson_reader<vec<T>>>> {
+-    str error_;
+-    vec<T> *out_;
+-    int cnt_ = 0;
+-public:
+-    void ResetParsing() { this->Reset(); }
+-
+-    static const bool multi = true;
+-
+-    amongo_rpc_bson_reader(vec<T> *out) : out_(out){}
+-
+-    void EmitError(str msg) {
+-        if (!error_) {
+-            error_ = msg;
+-            out_ = nullptr;
+-        }
+-    }
+-
+-    void EmitBsonValue(const okmongo::BsonValue &bv) {
+-        if (error_) {
+-            return;
+-        }
+-        rpc_bson_reader rdr(bv);
+-        T& val = out_->push_back();
+-        bool ok = rpc_traverse(rdr, val);
+-        if (ok) {
+-            cnt_++;
+-        } else {
+-            str error = rdr.get_error();
+-            strbuf errbuf("Failed to parse value from BsonValue: ");
+-            if (!error) {
+-                errbuf << "Unkown parse error";
+-            } else {
+-                errbuf << error;
+-            }
+-            this->Error(str(errbuf));
+-        }
+-    }
+-
+-    bool ok() const {
+-        return !error_;
+-    }
+-
+-    mongo_result_t get_res() {
+-        if (!this->Done()) {
+-            this->Error("Partial read");
+-        }
+-        if (error_) {
+-            return {error_, -1};
+-        }
+-        return {nullptr, cnt_};
+-    }
+-};
+-
+-template <typename T>
+-struct amongo_insert_op_t {
+-    static void run(mongo_connection_base_t *, str, const vec<T> &, evb_t,
+-                    CLOSURE);
+-};
+-
+-template <typename Res>
+-struct amongo_query_runner_t {
+-    okmongo::BsonWriter out;
+-    amongo_rpc_bson_reader<Res> reader;
+-
+-    amongo_query_runner_t(Res *tgt) : reader(tgt) {};
+-
+-    void run(mongo_connection_base_t *, str, evv_t, CLOSURE);
+-};
+-
+-template <typename Res, typename T>
+-struct amongo_query_op_t {
+-    static void run(mongo_connection_base_t *, str, const T &, Res *,
+-                    amongo_res_ev_t, CLOSURE);
+-};
+-
+-template <typename Res, typename T, typename Sel>
+-struct amongo_query2_op_t {
+-    static void run(mongo_connection_base_t *, str, const T &,
+-                    const Sel &,  Res *, amongo_res_ev_t, CLOSURE);
+-};
+-
+-tamed template <typename T>
+-static void amongo_insert_op_t<T>::run(mongo_connection_base_t *conn,
+-                                       str collection, const vec<T> &vals,
+-                                       evb_t ev) {
+-    tvars {
+-        bool ok(true);
+-        okmongo::BsonWriter cmd;
+-        decltype(std::declval<const vec<T>>().begin()) curs (vals.begin());
+-    }
+-    while (ok && curs != vals.end()) {
+-        cmd.Clear();
+-        ok = okmongo::FillInsertRangeOp(&cmd, ++conn->requestid_,
+-                                        conn->db_.cstr(), collection.cstr(),
+-                                        &curs, vals.end());
+-        if (ok) {
+-            twait {
+-                conn->run_cmd(cmd, mkevent(ok));
+-            }
+-        }
+-    }
+-    ev->trigger(ok);
+-}
+-
+-tamed template <typename Res>
+-void amongo_query_runner_t<Res>::run(mongo_connection_base_t *conn,
+-                                     str collection, evv_t ev) {
+-    tvars {
+-        bool ok;
+-    }
+-    twait {
+-        conn->run(out, &reader, mkevent());
+-    }
+-
+-    while (conn->socket_ && reader.Header().cursor_id != 0) {
+-        // If we've gone this far then we've successfully parsed the header and
+-        // we might need to either close a cursor or parse more.
+-        out.Clear();
+-        if (!reader.ok()) {
+-            ok = okmongo::FillKillCursorsOp(&out, ++conn->requestid_,
+-                                            reader.Header().cursor_id);
+-            if (!ok) {
+-                warn << __func__ << ": Failed to fill kill cursor.\n";
+-            } else {
+-                twait {
+-                    conn->run_cmd(out, mkevent(ok));
+-                }
+-                // We def don't want to leave a cursor hanging out here...
+-                if (!ok) {
+-                    conn->abort();
+-                }
+-            }
+-            break;
+-        } else {
+-            ok = okmongo::FillGetMoreOp(&out, ++conn->requestid_,
+-                                        conn->db_.cstr(), collection.cstr(),
+-                                        reader.Header().cursor_id);
+-            if (!ok) {
+-                warn << __func__ << ": Failed to fill get_more cursor.\n";
+-            } else {
+-                reader.Clear();
+-                twait { conn->run(out, &reader, mkevent()); }
+-            }
+-        }
+-    }
+-    ev->trigger();
+-}
+-
+-tamed template <typename Res, typename T>
+-static void amongo_query_op_t<Res, T>::run(mongo_connection_base_t *conn,
+-                                           str collection, const T &qry,
+-                                           Res *out, amongo_res_ev_t ev) {
+-    tvars {
+-        amongo_query_runner_t<Res> runner(out);
+-    }
+-    if (!okmongo::FillQueryOp(&runner.out, ++conn->requestid_, conn->db_.cstr(),
+-                              collection.cstr(), qry,
+-                              runner.reader.multi ? 0 : 1)) {
+-        runner.reader.Error("Failed to fill query op.");
+-    } else {
+-        twait { runner.run(conn, collection, mkevent()); }
+-    }
+-    ev->trigger(runner.reader.get_res());
+-}
+-
+-tamed template <typename Res, typename T, typename Sel>
+-static void amongo_query2_op_t<Res, T, Sel>::run(mongo_connection_base_t *conn,
+-                                                 str collection, const T &qry,
+-                                                 const Sel &sel, Res *out,
+-                                                 amongo_res_ev_t ev) {
+-    tvars {
+-        amongo_query_runner_t<Res> runner(out);
+-    }
+-    if (!okmongo::FillQueryOp(&runner.out, ++conn->requestid_, conn->db_.cstr(),
+-                              collection.cstr(), qry, sel,
+-                              runner.reader.multi ? 0 : 1)) {
+-        runner.reader.Error("Failed to fill query op.");
+-    } else {
+-        twait { runner.run(conn, collection, mkevent()); }
+-    }
+-    ev->trigger(runner.reader.get_res());
+-}
+-
+-//------------------------------------------------------------------------------
+-
+-template <typename T>
+-void mongo_connection_t::insert(str collection, const T &val, evb_t ev) {
+-    ref<okmongo::BsonWriter> cmd(New refcounted<okmongo::BsonWriter>);
+-    if (!
+-    okmongo::FillInsertOp(cmd, ++requestid_, db_.cstr(), collection.cstr(),
+-                          val)) {
+-        ev->trigger(false);
+-    }
+-    run_cmd(cmd, ev);
+-}
+-
+-template <typename T>
+-void mongo_connection_t::insert(str collection, const vec<T> &vals, evb_t ev) {
+-    amongo_insert_op_t<T>::run(this, collection, vals, ev);
+-}
+-
+-template <typename T>
+-void mongo_connection_t::remove(str collection, const T &val, evb_t ev) {
+-    ref<okmongo::BsonWriter> cmd(New refcounted<okmongo::BsonWriter>);
+-    if (!okmongo::FillDeleteOp(cmd, ++requestid_, db_.cstr(), collection.cstr(),
+-                               val)) {
+-        ev->trigger(false);
+-    }
+-    run_cmd(cmd, ev);
+-}
+-
+-template <typename Res, typename Qry>
+-void mongo_connection_t::query(str collection, const Qry &qry, Res *out,
+-                               amongo_res_ev_t ev) {
+-    amongo_query_op_t<Res, Qry>::run(this, collection, qry, out, ev);
+-}
+-
+-template <typename Res, typename Qry, typename Sel>
+-void mongo_connection_t::query(str collection, const Qry &qry, Res *out,
+-                               amongo_res_ev_t ev, const Sel &sel) {
+-    amongo_query2_op_t<Res, Qry, Sel>::run(this, collection, qry, sel, out, ev);
+-}
+diff --git a/libamongo/okmongo b/libamongo/okmongo
+deleted file mode 160000
+index 45699d5..0000000
+--- a/libamongo/okmongo
++++ /dev/null
+@@ -1 +0,0 @@
+-Subproject commit 45699d566abb48aab8f7f11357d8e36c2a3e5c80
+diff --git a/test/Makefile.am b/test/Makefile.am
+index fb53d0c..6b43783 100644
+--- a/test/Makefile.am
++++ b/test/Makefile.am
+@@ -1,9 +1,9 @@
+ 
+-SUBDIRS = system regtest unit pub bson
++SUBDIRS = system regtest unit pub
+ .PHONY: test tameclean
+ 
+ tameclean:
+-	for dir in system unit bson; do \
++	for dir in system unit; do \
+ 		(cd $$dir && $(MAKE) tameclean ) ; \
+ 	done
+ 
+diff --git a/test/bson/Makefile.am b/test/bson/Makefile.am
+deleted file mode 100644
+index 282cced..0000000
+--- a/test/bson/Makefile.am
++++ /dev/null
+@@ -1,39 +0,0 @@
+--include $(SFS_LIB_MK)
+-
+-noinst_PROGRAMS = mongotest
+-$(PROGRAMS): $(LDEPS_PUB) $(LDEPS_RFN)
+-
+-tamed_in = mongotest.T
+-tamed_out = mongotest.C
+-mongotest_SOURCES = fakeblob_prot.C mongotest.T
+-mongotest_LDADD = $(LDADD_AMONGO)
+-
+-SUFFIXES = .T .C .h
+-
+-RPCCIN = fakeblob.x
+-RPCCOUT = fakeblob.C fakeblob.h
+-
+-.T.C:
+-	-$(TAME) -o $@ $< || rm -f $@
+-
+-.x.h:
+-	$(XMLRPCC) -h -o $@ $< || (rm -f $@ && false)
+-.x.C:
+-	$(XMLRPCC) -c -o $@ $< || (rm -f $@ && false)
+-
+-fakeblob_prot.h: fakeblob_prot.x
+-fakeblob_prot.C: fakeblob_prot.x
+-fakeblob_prot.o: fakeblob_prot.h
+-fakeblob_prot.lo: fakeblob_prot.h
+-
+-MAINTAINERCLEANFILES = Makefile.in
+-CLEANFILES = core *.core *~ $(tamed_out)
+-EXTRA_DIST = $(tamed_in)
+-
+-dist-hook:
+-	cd $(distdir) && rm -f $(tamed_out)
+-
+-.PHONY: tameclean
+-
+-tameclean:
+-	rm -f $(tamed_out)
+diff --git a/test/bson/fakeblob_prot.x b/test/bson/fakeblob_prot.x
+deleted file mode 100644
+index 0986e2a..0000000
+--- a/test/bson/fakeblob_prot.x
++++ /dev/null
+@@ -1,131 +0,0 @@
+-// -*- mode: c++; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
+-typedef u_int64_t userid_t;
+-typedef int       ok_time_t;
+-
+-struct blob_vote_tally_t {
+-    unsigned weighted_sum;
+-    unsigned num_votes;
+-};
+-
+-struct uid_wrapper_t {
+-    userid_t userid;
+-};
+-
+-enum blob_vers_t {
+-    BV_NONE = 0,
+-    BV_V1 = 1,
+-    BV_V2 = 2
+-};
+-
+-struct blob_1_t {
+-    string name<>;
+-    userid_t userid;
+-
+-    ok_time_t last_login;
+-
+-    unsigned birth_year;
+-    unsigned birth_day;
+-
+-    unsigned gender;
+-    unsigned orientation;
+-
+-    unsigned religion;
+-    unsigned religionserious;
+-
+-    unsigned usemetric;
+-    unsigned height;
+-    unsigned smoking;
+-    unsigned drinking;
+-    unsigned drugs;
+-    unsigned money;
+-    unsigned jobtype;
+-    unsigned ethnicity;
+-    unsigned bodytype;
+-
+-    unsigned *opt_val;
+-};
+-
+-struct blob_2_t {
+-    string name<>;
+-
+-    // profile data
+-    userid_t userid;
+-
+-    ok_time_t last_login;
+-
+-    unsigned birth_year;
+-    unsigned birth_day;
+-
+-    unsigned gender;
+-    unsigned orientation;
+-    unsigned gentation;
+-    unsigned gentation_want;
+-
+-    unsigned picture_active;
+-
+-    unsigned religion;
+-    unsigned religionserious;
+-
+-    unsigned usemetric;
+-    unsigned height;
+-    unsigned smoking;
+-    unsigned drinking;
+-    unsigned drugs;
+-    unsigned money;
+-    unsigned jobtype;
+-    unsigned ethnicity;
+-    unsigned bodytype;
+-
+-    unsigned languages<>;
+-
+-    unsigned looking_for;
+-    unsigned relationship_status;
+-
+-    unsigned dogs;
+-    unsigned cats;
+-
+-    unsigned children;
+-
+-    unsigned education_status;
+-    unsigned education_level;
+-
+-    unsigned sign;
+-    unsigned sign_status;
+-
+-    unsigned acct_status;
+-    unsigned acct_level;
+-    unsigned prev_acct_levels;
+-
+-    unsigned profile_score;
+-    unsigned other_settings;
+-
+-    // Personality stuff
+-    unsigned int personality_code;
+-    blob_vote_tally_t personality_votes;
+-    blob_vote_tally_t messaging_votes;
+-    blob_vote_tally_t date_votes;
+-
+-    userid_t hidden_users<>;
+-    userid_t users_hiding_me<>;
+-
+-    int32_t grid_latitude;
+-    int32_t grid_longitude;
+-    u_int32_t locid;
+-
+-    opaque minis<>;
+-
+-    ok_time_t join_date;
+-
+-    unsigned diet;
+-    unsigned diet_serious;
+-
+-};
+-
+-union blob_t switch (blob_vers_t ver) {
+- case BV_V1:
+-     blob_1_t v1;
+- case BV_V2:
+-     blob_2_t v2;
+- default:
+-     void;
+-};
+diff --git a/test/bson/mongotest.T b/test/bson/mongotest.T
+deleted file mode 100644
+index 5009db2..0000000
+--- a/test/bson/mongotest.T
++++ /dev/null
+@@ -1,270 +0,0 @@
+-// -*- mode:c++ -*-
+-#include "amisc.h"
+-#include "pub3.h"
+-#include "okrfn.h"
+-
+-#include "abson.h"
+-#include "amongo.h"
+-
+-#include "fakeblob_prot.h"
+-
+-#include <fstream>
+-#include <limits>
+-
+-#define WERR  warn << __func__ << "[" << __LINE__ << "] "
+-
+-static void insert_usr(mongo_connection_t *, str name, uint64_t,
+-                       pub3::xev_t ev, CLOSURE);
+-
+-tamed void insert_usr(mongo_connection_t *db, str name, uint64_t id,
+-                      pub3::xev_t ev) {
+-    tvars {
+-        ptr<pub3::expr_dict_t> usr;
+-        bool ok;
+-    }
+-    usr.alloc();
+-    usr->insert("username", name);
+-    usr->insert("tab", pub3::expr_uint_t::alloc(id));
+-    twait {
+-        db->insert("pub_test_users", usr, mkevent(ok));
+-    }
+-    if (!ok) {
+-        WERR << "Failed to insert: " << name << "\n";
+-        exit(1);
+-    }
+-    ev->trigger(usr);
+-}
+-
+-static void pub_mongo_test(ptr<mongo_connection_t> conn, evv_t, CLOSURE);
+-
+-tamed void pub_mongo_test(ptr<mongo_connection_t> conn, evv_t ev) {
+-    tvars {
+-        ptr<pub3::expr_dict_t> all;
+-        ptr<pub3::expr_dict_t> usr1_qry;
+-        ptr<pub3::expr_list_t> res;
+-        ptr<pub3::expr_t> usr1;
+-        ptr<pub3::expr_t> usr2;
+-        bool ok;
+-    }
+-    res->alloc();
+-    // Empty document selects all
+-    all = pub3::expr_dict_t::alloc();
+-
+-    // Filling the query for usr1
+-    usr1_qry = pub3::expr_dict_t::alloc();
+-    usr1_qry->insert("username", "usr1");
+-
+-    twait {
+-        conn->remove("pub_test_users", all, mkevent(ok));
+-    }
+-
+-    if (!ok) {
+-        WERR << ": failed\n";
+-        exit(1);
+-    }
+-
+-    twait {
+-        insert_usr(conn, "usr1", 1, mkevent(usr1));
+-    }
+-    twait {
+-        insert_usr(conn, "usr2", 2, mkevent(usr2));
+-    }
+-
+-    twait {
+-        conn->query("pub_test_users", all, mkevent(res));
+-    }
+-
+-    if (res) {
+-        assert(res->size() == 2);
+-        str name1 = res->lookup(0)->to_dict()->lookup("username")->to_str();
+-        str name2 = res->lookup(1)->to_dict()->lookup("username")->to_str();
+-        assert((name1 == "usr1" && name2 == "usr2") ||
+-               (name1 == "usr2" && name2 == "usr1"));
+-    } else {
+-        WERR << "failed \n";
+-        exit(1);
+-    }
+-
+-    twait {
+-        conn->query("pub_test_users", usr1_qry, mkevent(res));
+-    }
+-
+-    if (res) {
+-        assert(res->size() == 1);
+-        str name = res->lookup(0)->to_dict()->lookup("username")->to_str();
+-        assert(name == "usr1");
+-    } else {
+-        WERR << "failed \n";
+-        exit(1);
+-    }
+-
+-    ev->trigger();
+-}
+-
+-//------------------------------------------------------------------------------
+-// Native test
+-//------------------------------------------------------------------------------
+-
+-bool rpc_traverse(rpc_bson_writer &t, blob_t &obj, const char *field = nullptr);
+-bool rpc_traverse(rpc_bson_reader &t, blob_t &obj, const char *field = nullptr);
+-
+-FLAT_UNION_TRAVERSE(rpc_bson_writer, blob_t, ver);
+-FLAT_UNION_TRAVERSE(rpc_bson_reader, blob_t, ver);
+-
+-// A range (bounds included...)
+-struct uid_range_t {
+-    uint64_t low;
+-    uint64_t high;
+-};
+-
+-static void WriteRangeQueryFields(okmongo::BsonWriter *w, const char *fld,
+-                                  uint64_t low, uint64_t high) {
+-    assert (low <= high);
+-    constexpr uint64_t cutoff =
+-            static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+-    if (high <= cutoff || (low > cutoff)) {
+-        w->PushDocument(fld);
+-        w->Element("$gte", add_sign(low));
+-        w->Element("$lte", add_sign(high));
+-        w->Pop();
+-    } else {
+-        w->PushArray("$or");
+-        {
+-            w->PushDocument(0);
+-            w->PushDocument(fld);
+-            w->Element("$gte", add_sign(low));
+-            w->Pop();
+-            w->Pop();
+-
+-            w->PushDocument(1);
+-            w->PushDocument(fld);
+-            w->Element("$lte", add_sign(high));
+-            w->Pop();
+-            w->Pop();
+-        }
+-        w->Pop();
+-    }
+-};
+-
+-
+-namespace okmongo {
+-
+-    template <>
+-    bool BsonWriteFields<uid_range_t>(BsonWriter *w,
+-                                      const uid_range_t &range) {
+-        WriteRangeQueryFields(w, "userid", range.low, range.high);
+-        return true;
+-    }
+-} // okmongo.
+-
+-struct query_all_t {};
+-
+-namespace okmongo {
+-template <>
+-bool BsonWriteFields<query_all_t>(BsonWriter *, const query_all_t &) {
+-    return true;
+-}
+-}
+-
+-void native_mongo_test(mongo_connection_t *, evv_t, CLOSURE);
+-
+-constexpr uint64_t kInt64Cutoff =
+-        static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+-
+-constexpr uint64_t uidsToInsert = 102400;
+-
+-tamed void native_mongo_test(mongo_connection_t *conn, evv_t ev) {
+-    tvars {
+-        const str col("native_test_blobs");
+-        bool ok;
+-        vec<blob_t> blobs;
+-        query_all_t qry;
+-        uid_range_t range_qry({kInt64Cutoff - 50, kInt64Cutoff + 50});
+-        uid_wrapper_t sel_uid;
+-        vec<uid_wrapper_t> sel_res;
+-        mongo_result_t qres;
+-        uint64_t cnt(0);
+-    }
+-    // Clear it...
+-    twait {
+-        conn->remove(col, qry, mkevent(ok));
+-    }
+-
+-    if(!ok) {
+-        WERR << ": delete failed\n";
+-        exit(1);
+-    }
+-
+-    blobs.setsize(5000);
+-
+-    for (blob_t &blob : blobs) {
+-        blob.set_ver(BV_V2);
+-        blob.v2 = {};
+-    }
+-
+-    while (cnt < 102400) {
+-        for (blob_t &blob : blobs) {
+-            blob.v2->userid = kInt64Cutoff - uidsToInsert / 2 + cnt;
+-            cnt++;
+-        }
+-        twait {
+-            conn->insert(col, blobs, mkevent(ok));
+-        }
+-        if (!ok) {
+-            WERR << ":Insert failed.\n";
+-            exit(1);
+-        }
+-    }
+-
+-    // Select only the userids
+-    sel_uid.userid = 1;
+-
+-    range_qry.high = kInt64Cutoff - 10;
+-    twait {
+-        conn->query<vec<uid_wrapper_t>>(col, range_qry, &sel_res, mkevent(qres),
+-                                        sel_uid);
+-    }
+-
+-    if (!qres.error) {
+-        vec<uint64_t> res;
+-        for (const auto &e : sel_res) {
+-            res.push_back(e.userid);
+-        }
+-        std::sort(res.begin(), res.end());
+-        uint64_t check_cnt = range_qry.low;
+-        for (uint64_t uid : res) {
+-            assert (uid == check_cnt);
+-            ++check_cnt;
+-        }
+-    } else {
+-        WERR << ": Query failed with " << qres.error << ".\n";
+-        exit(1);
+-    }
+-
+-    ev->trigger();
+-}
+-
+-void main2(CLOSURE);
+-
+-tamed void main2() {
+-    tvars {
+-        ptr<mongo_connection_t> conn;
+-        vec<mongo_host_t> hosts();
+-    }
+-    hosts.push_back(mongo_host_t("bogus"));
+-    hosts.push_back(mongo_host_t("127.0.0.1"));
+-    conn = New refcounted<mongo_connection_t>(hosts, "okws_test");
+-    twait { pub_mongo_test(conn, mkevent()); }
+-    twait { native_mongo_test(conn, mkevent()); }
+-    exit(0);
+-}
+-
+-int main(int argc, char** argv) {
+-    make_sync(0);
+-    make_sync(1);
+-    make_sync(2);
+-
+-    main2();
+-    amain();
+-    return 0;
+-}
+-- 
+1.9.1
+
